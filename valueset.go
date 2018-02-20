@@ -27,7 +27,7 @@ func (e *ValueOutOfRangeError) Error() string {
 	return e.message
 }
 
-func newValueSet(min int, max int) ValueSet {
+func NewValueSet(min int, max int) ValueSet {
 	size := max - min + 1
 	return ValueSet{
 		lock:   newLocker(),
@@ -51,40 +51,38 @@ func (vs *ValueSet) address(value int) (int, uint) {
 	return vIndex / 64, uint(vIndex % 64)
 }
 
-func (vs *ValueSet) checkInBounds(values ...int) (err *ValueOutOfRangeError) {
+func (vs *ValueSet) checkInBounds(values ...int) *ValueOutOfRangeError {
 	for _, v := range values {
 		if outOfBounds := v < vs.min || v > vs.max; outOfBounds {
-			err = vs.error(v)
-			return
+			err := vs.error(v)
+			return err
 		}
 	}
-	return
+	return nil
 }
 
-func (vs *ValueSet) Add(values ...int) (added []int, err error) {
+func (vs *ValueSet) Add(values ...int) ([]int, error) {
 	if err := vs.checkInBounds(values...); err != nil {
-		return
+		return nil, err
 	}
 	addFunc := func(slot uint64, bit uint) uint64 {
 		return slot | (1 << bit)
 	}
-	added = vs.apply(addFunc, values)
-	return
+	return vs.apply(addFunc, values), nil
 }
 
-func (vs *ValueSet) Remove(values ...int) (added []int, err error) {
+func (vs *ValueSet) Remove(values ...int) ([]int, error) {
 	if err := vs.checkInBounds(values...); err != nil {
-		return
+		return nil, err
 	}
 	addFunc := func(slot uint64, bit uint) uint64 {
 		return slot &^ (1 << bit)
 	}
-	added = vs.apply(addFunc, values)
-	return
+	return vs.apply(addFunc, values), nil
 }
 
-func (vs *ValueSet) apply(f func(uint64, uint) uint64, values []int) (changed []int) {
-	changed = make([]int, 0, len(values))
+func (vs *ValueSet) apply(f func(uint64, uint) uint64, values []int) []int {
+	changed := make([]int, 0, len(values))
 	vs.lock(func() {
 		vals := vs.values
 		for _, v := range values {
@@ -96,11 +94,11 @@ func (vs *ValueSet) apply(f func(uint64, uint) uint64, values []int) (changed []
 		}
 		vs.values = vals
 	})
-	return
+	return changed
 }
 
 func (vs *ValueSet) Values() (answer []int) {
-	answer = make([]int, vs.max-vs.min+1)
+	answer = make([]int, 0, vs.max-vs.min+1)
 	var vals []uint64
 	vs.lock(func() {
 		vals = vs.values
@@ -108,12 +106,10 @@ func (vs *ValueSet) Values() (answer []int) {
 	num := vs.min
 	for _, slot := range vals {
 		mask := uint64(1)
-		for b := 0; num <= vs.max && b < 63; b++ {
-			mask <<= 1
+		for b := 0; num <= vs.max && b < 64; b, num, mask = b + 1, num + 1, mask << 1 {
 			if bitIsSet := (slot & mask) != 0; bitIsSet {
 				answer = append(answer, num)
 			}
-			num++
 		}
 	}
 	return
