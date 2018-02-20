@@ -4,10 +4,8 @@ import (
 	"sync"
 )
 
-type locker func(func())
-
 type ValueSet struct {
-	lock   locker
+	lock   func(func())
 	min    int
 	max    int
 	values []uint64
@@ -23,7 +21,7 @@ func NewValueSet(min int, max int) ValueSet {
 	}
 }
 
-func newLocker() locker {
+func newLocker() func(func()) {
 	lock := sync.Mutex{}
 	return func(action func()) {
 		lock.Lock()
