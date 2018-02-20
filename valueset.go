@@ -87,8 +87,7 @@ func (vs *ValueSet) Values() (answer []int) {
 	})
 	num := vs.min
 	for _, slot := range vals {
-		mask := uint64(1)
-		for b := 0; num <= vs.max && b < 64; b, num, mask = b+1, num+1, mask<<1 {
+		for b, mask := 0, uint64(1); num <= vs.max && b < 64; b, num, mask = b+1, num+1, mask<<1 {
 			if bitIsSet := (slot & mask) != 0; bitIsSet {
 				answer = append(answer, num)
 			}
