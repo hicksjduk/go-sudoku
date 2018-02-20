@@ -102,6 +102,28 @@ func TestValueSet_Contains_JustTooBig(t *testing.T) {
 	assert.False(t, found)
 }
 
+func TestAddWithLargeRange(t *testing.T) {
+	vs := NewValueSet(-1415, 124714)
+	ch := vs.Add(vs.min, vs.max, 44)
+	assertEqual(t, []int{vs.min, 44, vs.max}, ch)
+	assertEqual(t, []int{vs.min, 44, vs.max}, vs.Values())
+}
+
+func TestContainsWithLargeRange(t *testing.T) {
+	vs := NewValueSet(-1415, 124714)
+	vs.Add(vs.min, vs.max, 44)
+	assert.True(t, vs.Contains(vs.min))
+	assert.False(t, vs.Contains(vs.max - 1))
+}
+
+func TestRemoveWithLargeRange(t *testing.T) {
+	vs := NewValueSet(-1415, 124714)
+	vs.Add(vs.min, vs.max, 44)
+	ch := vs.Remove(44, vs.min)
+	assertEqual(t, []int{vs.min, 44}, ch)
+	assertEqual(t, []int{vs.max}, vs.Values())
+}
+
 func assertEqual(t *testing.T, expected, actual []int) {
 	sort.Ints(expected)
 	sort.Ints(actual)
