@@ -1,7 +1,6 @@
 package sudoku
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -12,19 +11,6 @@ type ValueSet struct {
 	min    int
 	max    int
 	values []uint64
-}
-
-type ValueOutOfRangeError struct {
-	message string
-}
-
-func (vs *ValueSet) error(value int) *ValueOutOfRangeError {
-	msg := fmt.Sprintf("Value %d is out of range (supported bounds are %d and %d)", value, vs.min, vs.max)
-	return &ValueOutOfRangeError{msg}
-}
-
-func (e *ValueOutOfRangeError) Error() string {
-	return e.message
 }
 
 func NewValueSet(min int, max int) ValueSet {
@@ -51,34 +37,32 @@ func (vs *ValueSet) address(value int) (int, uint) {
 	return vIndex / 64, uint(vIndex % 64)
 }
 
-func (vs *ValueSet) checkInBounds(values ...int) *ValueOutOfRangeError {
+func (vs *ValueSet) filterOutOfBounds(values ...int) []int {
+	answer := make([]int, 0, len(values))
 	for _, v := range values {
-		if outOfBounds := v < vs.min || v > vs.max; outOfBounds {
-			err := vs.error(v)
-			return err
+		if vs.isInBounds(v) {
+			answer = append(answer, v)
 		}
 	}
-	return nil
+	return answer
 }
 
-func (vs *ValueSet) Add(values ...int) ([]int, error) {
-	if err := vs.checkInBounds(values...); err != nil {
-		return nil, err
-	}
+func (vs *ValueSet) isInBounds(v int) bool {
+	return v >= vs.min && v <= vs.max
+}
+
+func (vs *ValueSet) Add(values ...int) []int {
 	addFunc := func(slot uint64, bit uint) uint64 {
 		return slot | (1 << bit)
 	}
-	return vs.apply(addFunc, values), nil
+	return vs.apply(addFunc, vs.filterOutOfBounds(values...))
 }
 
-func (vs *ValueSet) Remove(values ...int) ([]int, error) {
-	if err := vs.checkInBounds(values...); err != nil {
-		return nil, err
-	}
+func (vs *ValueSet) Remove(values ...int) []int {
 	addFunc := func(slot uint64, bit uint) uint64 {
 		return slot &^ (1 << bit)
 	}
-	return vs.apply(addFunc, values), nil
+	return vs.apply(addFunc, vs.filterOutOfBounds(values...))
 }
 
 func (vs *ValueSet) apply(f func(uint64, uint) uint64, values []int) []int {
@@ -116,7 +100,7 @@ func (vs *ValueSet) Values() (answer []int) {
 }
 
 func (vs *ValueSet) Contains(value int) bool {
-	if err := vs.checkInBounds(value); err != nil {
+	if !vs.isInBounds(value) {
 		return false
 	}
 	var vals []uint64
