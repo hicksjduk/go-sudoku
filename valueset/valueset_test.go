@@ -1,4 +1,4 @@
-package sudoku
+package valueset
 
 import (
 	"github.com/stretchr/testify/assert"
